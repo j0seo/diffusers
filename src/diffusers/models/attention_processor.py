@@ -527,6 +527,10 @@ class LoRAAttnProcessor(nn.Module):
         self.hidden_size = hidden_size
         self.cross_attention_dim = cross_attention_dim
         self.rank = rank
+        
+        #MODIFIED
+        self.name = kwargs.pop("name", None)
+        assert self.name is not None, "name must be defined for modified LoRAAttnProcessor for layer-wise LoRA"
 
         q_rank = kwargs.pop("q_rank", None)
         q_hidden_size = kwargs.pop("q_hidden_size", None)
@@ -570,7 +574,9 @@ class LoRAAttnProcessor(nn.Module):
         if attn.group_norm is not None:
             hidden_states = attn.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
-        query = attn.to_q(hidden_states) + scale * self.to_q_lora(hidden_states)
+        #MODIFIED
+        is_down = self.name.startswith("down_blocks")
+        query = attn.to_q(hidden_states) + scale * self.to_q_lora(hidden_states) if is_down else attn.to_q(hidden_states)
         query = attn.head_to_batch_dim(query)
 
         if encoder_hidden_states is None:
@@ -578,8 +584,9 @@ class LoRAAttnProcessor(nn.Module):
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states) + scale * self.to_k_lora(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states) + scale * self.to_v_lora(encoder_hidden_states)
+        #MODIFIED
+        key = attn.to_k(encoder_hidden_states) + scale * self.to_k_lora(encoder_hidden_states) if is_down else attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states) + scale * self.to_v_lora(encoder_hidden_states) if is_down else attn.to_v(encoder_hidden_states)
 
         key = attn.head_to_batch_dim(key)
         value = attn.head_to_batch_dim(value)
@@ -1275,6 +1282,10 @@ class LoRAAttnProcessor2_0(nn.Module):
         self.hidden_size = hidden_size
         self.cross_attention_dim = cross_attention_dim
         self.rank = rank
+        
+        #MODIFIED
+        self.name = kwargs.pop("name", None)
+        assert self.name is not None, "name must be specified for modified LoRAAttnProcessor2_0 for layer-wise LoRA"
 
         q_rank = kwargs.pop("q_rank", None)
         q_hidden_size = kwargs.pop("q_hidden_size", None)
@@ -1319,15 +1330,18 @@ class LoRAAttnProcessor2_0(nn.Module):
         if attn.group_norm is not None:
             hidden_states = attn.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
-        query = attn.to_q(hidden_states) + scale * self.to_q_lora(hidden_states)
+        # MODIFIED
+        is_down = self.name.startswith("down_blocks")
+        query = attn.to_q(hidden_states) + scale * self.to_q_lora(hidden_states) if is_down else attn.to_q(hidden_states)
 
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states) + scale * self.to_k_lora(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states) + scale * self.to_v_lora(encoder_hidden_states)
+        # MODIFIED
+        key = attn.to_k(encoder_hidden_states) + scale * self.to_k_lora(encoder_hidden_states) if is_down else attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states) + scale * self.to_v_lora(encoder_hidden_states) if is_down else attn.to_v(encoder_hidden_states)
 
         head_dim = inner_dim // attn.heads
         query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)

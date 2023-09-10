@@ -424,6 +424,7 @@ class UNet2DConditionLoadersMixin:
                                 else LoRAAttnProcessor
                             )
 
+                    #MODIFIED
                     if attn_processor_class is not LoRAAttnAddedKVProcessor:
                         attn_processors[key] = attn_processor_class(
                             rank=rank_mapping.get("to_k_lora.down.weight"),
@@ -436,6 +437,7 @@ class UNet2DConditionLoadersMixin:
                             v_hidden_size=hidden_size_mapping.get("to_v_lora.up.weight"),
                             out_rank=rank_mapping.get("to_out_lora.down.weight"),
                             out_hidden_size=hidden_size_mapping.get("to_out_lora.up.weight"),
+                            name=key,
                         )
                     else:
                         attn_processors[key] = attn_processor_class(
